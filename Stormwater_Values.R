@@ -8,6 +8,14 @@ library(WaterML)
 library(plotly)
 library(leaflet)
 
+# Define Pipe Dimensions, Slope, and Roughness Values
+
+Slope <- 0.001
+n <- 0.015
+
+diameter <- (2/3.281)
+radius <- (1/3.281)
+
 # Link to EnviroDIY server
 
 server <- "http://data.envirodiy.org/wofpy/soap/cuahsi_1_1/.wsdl"
@@ -20,24 +28,14 @@ Tanner_Flow2 <- GetValues(server, siteCode="envirodiy:STRM_01",
 Tanner_Flow <- Tanner_Flow2[1:2]
 names(Tanner_Flow) <- c("Date", "Distance")
 Tanner_Flow <- subset(Tanner_Flow, Distance > 0)
-Tanner_Flow$Distance <- Tanner_Flow$Distance*(39.37/1200)
-Tanner_Flow$Depth <- 2-Tanner_Flow$Distance
+Tanner_Flow$Distance <- Tanner_Flow$Distance/100
+Tanner_Flow$Depth <- diameter-Tanner_Flow$Distance
 Tanner_Flow <- subset(Tanner_Flow, Depth > 0)
-
-
-# Define Pipe Dimensions, Slope, and Roughness Values
-
-Slope <- 0.001
-n <- 0.015
-
-diameter <- 2
-radius <- 1
 
 # Calculate Theta based on Sensor Depth, Radius and Diameter
 
 Tanner_Flow$Theta <- ifelse((Tanner_Flow$Depth < radius), pi - (2*asin(1-(2*Tanner_Flow$Depth/diameter))),  
                             pi + (2*asin((2*Tanner_Flow$Depth/diameter)-1)))
-
 
 # Calculate Area from Theta and Diameter
 
@@ -53,7 +51,7 @@ Tanner_Flow$Hydraulic_Radius <- Tanner_Flow$Area/Tanner_Flow$Wetted_Perimeter
 
 # Calculate Flow using Manning's Equation
 
-Tanner_Flow$Flow <- (1.49/n)*Tanner_Flow$Area*
+Tanner_Flow$Flow <- (1.00/n)*Tanner_Flow$Area*
   (Tanner_Flow$Hydraulic_Radius^(2/3))*(Slope^0.5)
 
 Tanner_Flow <- Tanner_Flow[,c(1,8)]
@@ -63,7 +61,7 @@ names(Tanner_Flow) <- c('Date', 'DataValue')
 Tanner_Flow$dt <- as.POSIXct(Tanner_Flow$Date,format= "%Y-%m-%d %H:%M:%S")
 
 
-Tanner_Flow$type <- "Flow (cfs)"
+Tanner_Flow$type <- "Flow (cms)"
 
 
 # Get Judd Temperature Sensor Data for Tanner Dance Building from EnviroDIY server 
