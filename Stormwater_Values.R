@@ -60,6 +60,7 @@ names(Tanner_Flow) <- c('Date', 'DataValue')
 
 Tanner_Flow$dt <- as.POSIXct(Tanner_Flow$Date,format= "%Y-%m-%d %H:%M:%S")
 
+Tanner_Flow$dt <- Tanner_Flow$dt - (7*3600)
 
 Tanner_Flow$type <- "Flow (cms)"
 
@@ -73,9 +74,24 @@ names(Tanner_Temp) <- c("Date", "DataValue")
 
 Tanner_Temp$dt <- as.POSIXct(Tanner_Temp$Date,format= "%Y-%m-%d %H:%M:%S")
 
-Tanner_Temp$type <- "Temperature (°C)"
+Tanner_Temp$dt <- Tanner_Temp$dt - (7*3600)
 
-Tanner_Storm <- rbind(Tanner_Flow, Tanner_Temp)
+Tanner_Temp$type <- "Judd Air Temperature Sensor (°C)"
+
+# Get Mayfly Temperature Sensor Data for Tanner Dance Building from EnviroDIY server 
+Tanner_Mayfly_Temp <- GetValues(server, siteCode="envirodiy:STRM_01", 
+                         variableCode="envirodiy:EnviroDIY_Mayfly_Temp")
+
+Tanner_Mayfly_Temp <- Tanner_Mayfly_Temp[1:2]
+names(Tanner_Mayfly_Temp) <- c("Date", "DataValue")
+
+Tanner_Mayfly_Temp$dt <- as.POSIXct(Tanner_Mayfly_Temp$Date,format= "%Y-%m-%d %H:%M:%S")
+
+Tanner_Mayfly_Temp$dt <- Tanner_Mayfly_Temp$dt - (7*3600)
+
+Tanner_Mayfly_Temp$type <- "Mayfly Air Temperature Sensor (°C)"
+
+Tanner_Storm <- rbind(Tanner_Flow, Tanner_Temp, Tanner_Mayfly_Temp)
 
 # Define UI
 ui <- fluidPage(theme = shinytheme("lumen"),
@@ -90,7 +106,7 @@ ui <- fluidPage(theme = shinytheme("lumen"),
                     
                     # Select date range to be plotted
                     dateRangeInput("Date", strong("Date range"), start = "", end = "",
-                                   min = "2017-01-01", max = "2017-12-31")
+                                   min = "2017-01-01", max = "2020-12-31")
                     
                   ),
                   
