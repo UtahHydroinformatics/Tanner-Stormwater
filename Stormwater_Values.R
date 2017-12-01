@@ -94,13 +94,13 @@ Tanner_Mayfly_Temp$type <- "Mayfly Air Temperature Sensor (°C)"
 Tanner_Storm <- rbind(Tanner_Flow, Tanner_Temp, Tanner_Mayfly_Temp)
 
 # Define UI
-ui <- fluidPage(theme = shinytheme("lumen"),
+ui <- fluidPage(theme = shinytheme("cerulean"),
                 titlePanel("Tanner Building Storm Drain"),
                 sidebarLayout(
                   sidebarPanel(
                     
                     # Select type of trend to plot
-                    selectInput(inputId = "type", label = strong("Trend index"),
+                    selectInput(inputId = "type", label = strong("Parameter Type"),
                                 choices = unique(Tanner_Storm$type),
                                 selected = "Flow"),
                     
@@ -114,7 +114,7 @@ ui <- fluidPage(theme = shinytheme("lumen"),
                   mainPanel(
                     plotlyOutput(outputId = "lineplot", height = "600px"),
                     textOutput(outputId = "desc"),
-                    tags$a(href = "https://www.google.com/finance/domestic_trends", "Source: data.enviroydiy", target = "_blank"),
+                    tags$a(href = "http://data.envirodiy.org/", "Source: EnviroDIY", target = "_blank"),
                     leafletOutput("sensormap")
                   )
                 )
