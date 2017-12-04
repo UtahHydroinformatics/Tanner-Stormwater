@@ -8,6 +8,11 @@ library(WaterML)
 library(plotly)
 library(leaflet)
 
+#Read Sites table for map locations
+
+sites <- read.csv('data/sites.csv', header = TRUE)
+names(sites) <- c("site", "long", "lat")
+
 # Define Pipe Dimensions, Slope, and Roughness Values
 
 Slope <- 0.001
@@ -93,19 +98,37 @@ Tanner_Mayfly_Temp$type <- "Mayfly Air Temperature Sensor (°C)"
 
 Tanner_Storm <- rbind(Tanner_Flow, Tanner_Temp, Tanner_Mayfly_Temp)
 
+Tanner_Storm$site <- "Tanner Dance"
+
+UU_Storm <- merge(Tanner_Storm, sites, by="site")
+
+lastDate <- tail(UU_Storm$dt, n=2)
+
+SeventyTwoBefore <- lastDate - (72*3600)
+
 # Define UI
 ui <- fluidPage(theme = shinytheme("cerulean"),
-                titlePanel("Tanner Building Storm Drain"),
+                titlePanel("University of Utah Storm Drain Network"),
                 sidebarLayout(
                   sidebarPanel(
                     
-                    # Select type of trend to plot
-                    selectInput(inputId = "type", label = strong("Parameter Type"),
-                                choices = unique(Tanner_Storm$type),
+                    # Select site location to plot
+                    selectInput(inputId = "site", label = strong("Site"),
+                                choices = unique(UU_Storm$site),
+                                selected = "Tanner Dance"),
+                    
+                    # Select first data type to plot
+                    selectInput(inputId = "type", label = strong("Primary Variable"),
+                                choices = unique(UU_Storm$type),
                                 selected = "Flow"),
                     
+                    # Select second data type to plot
+                    selectInput(inputId = "variable", label = strong("Secondary Variable"),
+                                choices = unique(UU_Storm$type),
+                                selected = "Judd Air Temperature Sensor (°C)"),
+                    
                     # Select date range to be plotted
-                    dateRangeInput("Date", strong("Date range"), start = "", end = "",
+                    dateRangeInput("Date", strong("Date range"), start = SeventyTwoBefore, end = lastDate,
                                    min = "2017-01-01", max = "2020-12-31")
                     
                   ),
@@ -113,6 +136,7 @@ ui <- fluidPage(theme = shinytheme("cerulean"),
                   # Output: Description, lineplot, and reference
                   mainPanel(
                     plotlyOutput(outputId = "lineplot", height = "600px"),
+                    plotlyOutput(outputId = "secondplot", height = "600px"),
                     textOutput(outputId = "desc"),
                     tags$a(href = "http://data.envirodiy.org/", "Source: EnviroDIY", target = "_blank"),
                     leafletOutput("sensormap")
@@ -125,12 +149,29 @@ server2 <- function(input, output) {
   
   # Subset data
   selected_trends <- reactive({
+    req(input$site)
+    req(input$type)
     req(input$Date)
     validate(need(!is.na(input$Date[1]) & !is.na(input$Date[2]), "Error: Please provide both a start and an end date."))
     validate(need(input$Date[1] < input$Date[2], "Error: Start date should be earlier than end date."))
     Tanner_Storm %>%
       filter(
+        site == input$site,
         type == input$type,
+        Date > as.POSIXct(input$Date[1]) & Date < as.POSIXct(input$Date[2]
+        ))
+  })
+  
+  second_data <- reactive({
+    req(input$site)
+    req(input$variable)
+    req(input$Date)
+    validate(need(!is.na(input$Date[1]) & !is.na(input$Date[2]), "Error: Please provide both a start and an end date."))
+    validate(need(input$Date[1] < input$Date[2], "Error: Start date should be earlier than end date."))
+    Tanner_Storm %>%
+      filter(
+        site == input$site,
+        type == input$variable,
         Date > as.POSIXct(input$Date[1]) & Date < as.POSIXct(input$Date[2]
         ))
   })
@@ -140,18 +181,28 @@ server2 <- function(input, output) {
   output$lineplot <- renderPlotly({
     p <- plot_ly(source = "source") %>% 
       add_lines(data = selected_trends(), x = ~Date, y = ~DataValue, mode = "lines", color = input$type, colors = c("#132B43", "#56B1F7")) %>%  
-      add_trace(data = selected_trends(), x = ~Date, y = ~DataValue, mode = "markers", color= "Individual Reading")
+      add_trace(data = selected_trends(), x = ~Date, y = ~DataValue, mode = "markers", color= "Individual Reading") %>%
+      layout(xaxis = list(title = "Date/Time"), yaxis= list(title=input$type))
     p
     })
+  
+  output$secondplot <- renderPlotly({
+    sp <- plot_ly(source = "source") %>% 
+      add_lines(data = second_data(), x = ~Date, y = ~DataValue, mode = "lines", color = input$variable, colors = c("#132B43", "#56B1F7")) %>%  
+      add_trace(data = second_data(), x = ~Date, y = ~DataValue, mode = "markers", color= "Individual Reading") %>%
+      layout(xaxis = list(title = "Date/Time"), yaxis= list(title=input$variable))
+    sp
+  })
   
   #Add Map of sensor location
   output$sensormap <- renderLeaflet({
     # Use leaflet() here, and only include aspects of the map that
     # won't need to change dynamically (at least, not unless the
     # entire map is being torn down and recreated).
+    locations <- subset(UU_Storm, site==input$site)
     leaflet() %>% 
       addTiles() %>%
-      addMarkers(lng=-111.841, lat=40.7624, label="HPER Mall Storm Drain")
+      addMarkers(lng=locations$long, lat=locations$lat, label=input$site)
   })
   
 
