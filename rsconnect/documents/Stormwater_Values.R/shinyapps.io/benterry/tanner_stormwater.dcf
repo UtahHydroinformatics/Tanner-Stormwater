@@ -1,0 +1,13 @@
+name: tanner_stormwater
+title: Tanner Stormwater
+username:
+account: benterry
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 241877
+bundleId: 1112896
+url: https://benterry.shinyapps.io/tanner_stormwater/
+when: 1512348684.22552
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: 160065_Limno_Crossroads_EnviroDIY_Mayfly_Temp_281.csv|desktop.ini|envirodiy_WaterML_example.R|Flow2.R|Shiny_Flow.R|ShinyApp.R|Tanner_Measurements.R|Tanner_Measurements_Minus.R|Tanner_Measurements_Minus_Edit.R|Tanner_Measurements_plotly.R|Tanner_Measurements_Raw.R
