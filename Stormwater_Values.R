@@ -10,7 +10,7 @@ library(leaflet)
 
 #Read Sites table for map locations
 
-sites <- read.csv('data/sites.csv', header = TRUE)
+sites <- read.csv('./data/sites.csv', header = TRUE)
 names(sites) <- c("site", "long", "lat")
 
 # Define Pipe Dimensions, Slope, and Roughness Values
@@ -47,11 +47,7 @@ Tanner_Distance <- Tanner_Distance[,c(1,3)]
 names(Tanner_Distance) <- c('Date', 'DataValue')
 
 Tanner_Distance_Download <- Tanner_Distance
-names(Tanner_Distance_Download) <- c("Date (GMT)", "Depth (m)")
-
-Tanner_Distance$dt <- as.POSIXct(Tanner_Distance$Date,format= "%Y-%m-%d %H:%M:%S")
-
-Tanner_Distance$dt <- Tanner_Distance$dt - (7*3600)
+names(Tanner_Distance_Download) <- c("Date", "Depth (m)")
 
 Tanner_Distance$type <- "Depth (m)"
 
@@ -82,11 +78,7 @@ Tanner_Flow <- Tanner_Flow[,c(1,8)]
 names(Tanner_Flow) <- c('Date', 'DataValue')
 
 Tanner_Flow_Download <- Tanner_Flow
-names(Tanner_Flow_Download) <- c("Date (GMT)", "Flow (cms)")
-
-Tanner_Flow$dt <- as.POSIXct(Tanner_Flow$Date,format= "%Y-%m-%d %H:%M:%S")
-
-Tanner_Flow$dt <- Tanner_Flow$dt - (7*3600)
+names(Tanner_Flow_Download) <- c("Date", "Flow (cms)")
 
 Tanner_Flow$type <- "Flow (cms)"
 
@@ -101,10 +93,6 @@ names(Tanner_Temp) <- c("Date", "DataValue")
 Tanner_Temp_Download <- Tanner_Temp
 names(Tanner_Temp_Download) <- c("Date", "Judd_Temperature (°C)")
 
-Tanner_Temp$dt <- as.POSIXct(Tanner_Temp$Date,format= "%Y-%m-%d %H:%M:%S")
-
-Tanner_Temp$dt <- Tanner_Temp$dt - (7*3600)
-
 Tanner_Temp$type <- "Judd Air Temperature Sensor (°C)"
 
 # Get Mayfly Temperature Sensor Data for Tanner Dance Building from EnviroDIY server 
@@ -117,19 +105,19 @@ names(Tanner_Mayfly_Temp) <- c("Date", "DataValue")
 Tanner_Temp_Mayfly_Download <- Tanner_Mayfly_Temp
 names(Tanner_Temp_Mayfly_Download) <- c("Date", "Mayfly_Temperature (°C)")
 
-Tanner_Mayfly_Temp$dt <- as.POSIXct(Tanner_Mayfly_Temp$Date,format= "%Y-%m-%d %H:%M:%S")
-
-Tanner_Mayfly_Temp$dt <- Tanner_Mayfly_Temp$dt - (7*3600)
-
 Tanner_Mayfly_Temp$type <- "Mayfly Air Temperature Sensor (°C)"
 
 Tanner_Storm <- rbind(Tanner_Flow, Tanner_Temp, Tanner_Mayfly_Temp, Tanner_Distance)
+
+Tanner_Storm$Date <- Tanner_Storm$Date - (6*3600)
 
 Tanner_Storm$site <- "Tanner Dance"
 
 UU_Storm <- merge(Tanner_Storm, sites, by="site")
 
-lastDate <- tail(UU_Storm$dt, n=2)
+#download_data <- cbind.fill(Tanner_Flow_Download[1:2], Tanner_Temp_Download[2], Tanner_Temp_Mayfly_Download[2], Tanner_Distance_Download[2])
+
+lastDate <- tail(UU_Storm$Date, n=2)
 
 SeventyTwoBefore <- lastDate - (72*3600)
 
@@ -163,7 +151,7 @@ ui <- fluidPage(theme = shinytheme("cerulean"),
                     tags$a(href = "https://github.com/UtahHydroinformatics/Tanner-Stormwater", "Shiny Code", target = "_blank"),
                     
                     # Button
-                    downloadButton("downloadData", "Download All Data")
+                    downloadButton("downloadData", "Download Flow Rate Data")
                   ),
                    
                   
@@ -219,7 +207,7 @@ server2 <- function(input, output) {
     p <- plot_ly(source = "source") %>% 
       add_lines(data = selected_trends(), x = ~Date, y = ~DataValue, mode = "lines", color = input$type, colors = c("#132B43", "#56B1F7")) %>%  
       add_trace(data = selected_trends(), x = ~Date, y = ~DataValue, mode = "markers", color= "Individual Reading") %>%
-      layout(xaxis = list(title = "Date/Time"), yaxis= list(title=input$type))
+      layout(xaxis = list(title = "Date/Time (MTN Time)"), yaxis= list(title=input$type))
     p
     })
   
@@ -227,7 +215,7 @@ server2 <- function(input, output) {
     sp <- plot_ly(source = "source") %>% 
       add_lines(data = second_data(), x = ~Date, y = ~DataValue, mode = "lines", color = input$variable, colors = c("#132B43", "#56B1F7")) %>%  
       add_trace(data = second_data(), x = ~Date, y = ~DataValue, mode = "markers", color= "Individual Reading") %>%
-      layout(xaxis = list(title = "Date/Time"), yaxis= list(title=input$variable))
+      layout(xaxis = list(title = "Date/Time (MTN Time"), yaxis= list(title=input$variable))
     sp
   })
   
@@ -245,14 +233,13 @@ server2 <- function(input, output) {
   # Downloadable csv of selected dataset ----
   output$downloadData <- downloadHandler(
     filename = function() {
-      paste("Discharge_Data", ".csv", sep = "")
+      "Discharge_Data.csv"
     },
     content = function(file) {
-      write.csv(cbind(Tanner_Flow_Download[1:2], Tanner_Temp_Download[2], Tanner_Temp_Mayfly_Download[2], Tanner_Distance_Download[2]), file, row.names = FALSE)
+      write.csv(Tanner_Flow_Download, file=file, row.names = FALSE)
     }
   )
   
-
 }
 
 # Create Shiny object
