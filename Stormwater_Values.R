@@ -18,6 +18,8 @@ names(sites) <- c("site", "long", "lat")
 Slope <- 0.001
 n <- 0.015
 
+Gage <- 1.4
+
 diameter <- (2/3.281)
 radius <- (1/3.281)
 
@@ -26,16 +28,32 @@ radius <- (1/3.281)
 server <- "http://data.envirodiy.org/wofpy/soap/cuahsi_1_1/.wsdl"
 
 # Get Judd Depth Sensor Data for Tanner Dance Building from EnviroDIY server 
-Tanner_Flow2 <- GetValues(server, siteCode="envirodiy:STRM_01", 
+Tanner_Distance <- GetValues(server, siteCode="envirodiy:Test_F", 
                           variableCode="envirodiy:Judd-Distance")
 
 # Change Column Names and Convert Depth from Centimeters to Feet
-Tanner_Flow <- Tanner_Flow2[1:2]
-names(Tanner_Flow) <- c("Date", "Distance")
-Tanner_Flow <- subset(Tanner_Flow, Distance > 0)
-Tanner_Flow$Distance <- Tanner_Flow$Distance/100
-Tanner_Flow$Depth <- diameter-Tanner_Flow$Distance
-Tanner_Flow <- subset(Tanner_Flow, Depth > 0)
+Tanner_Distance <- Tanner_Distance[1:2]
+names(Tanner_Distance) <- c("Date", "Distance")
+Tanner_Distance <- subset(Tanner_Distance, Distance > 0)
+Tanner_Distance$Distance <- Tanner_Distance$Distance/100
+Tanner_Distance$Depth <- Gage-Tanner_Distance$Distance
+Tanner_Distance <- subset(Tanner_Distance, Depth < diameter)
+Tanner_Distance <- subset(Tanner_Distance, Depth > 0)
+
+Tanner_Flow <- Tanner_Distance
+
+Tanner_Distance <- Tanner_Distance[,c(1,3)]
+
+names(Tanner_Distance) <- c('Date', 'DataValue')
+
+Tanner_Distance_Download <- Tanner_Distance
+names(Tanner_Distance_Download) <- c("Date (GMT)", "Depth (m)")
+
+Tanner_Distance$dt <- as.POSIXct(Tanner_Distance$Date,format= "%Y-%m-%d %H:%M:%S")
+
+Tanner_Distance$dt <- Tanner_Distance$dt - (7*3600)
+
+Tanner_Distance$type <- "Depth (m)"
 
 # Calculate Theta based on Sensor Depth, Radius and Diameter
 
@@ -63,6 +81,9 @@ Tanner_Flow <- Tanner_Flow[,c(1,8)]
 
 names(Tanner_Flow) <- c('Date', 'DataValue')
 
+Tanner_Flow_Download <- Tanner_Flow
+names(Tanner_Flow_Download) <- c("Date (GMT)", "Flow (cms)")
+
 Tanner_Flow$dt <- as.POSIXct(Tanner_Flow$Date,format= "%Y-%m-%d %H:%M:%S")
 
 Tanner_Flow$dt <- Tanner_Flow$dt - (7*3600)
@@ -71,11 +92,14 @@ Tanner_Flow$type <- "Flow (cms)"
 
 
 # Get Judd Temperature Sensor Data for Tanner Dance Building from EnviroDIY server 
-Tanner_Temp <- GetValues(server, siteCode="envirodiy:STRM_01", 
+Tanner_Temp <- GetValues(server, siteCode="envirodiy:Test_F", 
                          variableCode="envirodiy:Judd-Temperature")
 
 Tanner_Temp <- Tanner_Temp[1:2]
 names(Tanner_Temp) <- c("Date", "DataValue")
+
+Tanner_Temp_Download <- Tanner_Temp
+names(Tanner_Temp_Download) <- c("Date", "Judd_Temperature (°C)")
 
 Tanner_Temp$dt <- as.POSIXct(Tanner_Temp$Date,format= "%Y-%m-%d %H:%M:%S")
 
@@ -84,11 +108,14 @@ Tanner_Temp$dt <- Tanner_Temp$dt - (7*3600)
 Tanner_Temp$type <- "Judd Air Temperature Sensor (°C)"
 
 # Get Mayfly Temperature Sensor Data for Tanner Dance Building from EnviroDIY server 
-Tanner_Mayfly_Temp <- GetValues(server, siteCode="envirodiy:STRM_01", 
+Tanner_Mayfly_Temp <- GetValues(server, siteCode="envirodiy:Test_F", 
                          variableCode="envirodiy:EnviroDIY_Mayfly_Temp")
 
 Tanner_Mayfly_Temp <- Tanner_Mayfly_Temp[1:2]
 names(Tanner_Mayfly_Temp) <- c("Date", "DataValue")
+
+Tanner_Temp_Mayfly_Download <- Tanner_Mayfly_Temp
+names(Tanner_Temp_Mayfly_Download) <- c("Date", "Mayfly_Temperature (°C)")
 
 Tanner_Mayfly_Temp$dt <- as.POSIXct(Tanner_Mayfly_Temp$Date,format= "%Y-%m-%d %H:%M:%S")
 
@@ -96,7 +123,7 @@ Tanner_Mayfly_Temp$dt <- Tanner_Mayfly_Temp$dt - (7*3600)
 
 Tanner_Mayfly_Temp$type <- "Mayfly Air Temperature Sensor (°C)"
 
-Tanner_Storm <- rbind(Tanner_Flow, Tanner_Temp, Tanner_Mayfly_Temp)
+Tanner_Storm <- rbind(Tanner_Flow, Tanner_Temp, Tanner_Mayfly_Temp, Tanner_Distance)
 
 Tanner_Storm$site <- "Tanner Dance"
 
@@ -108,7 +135,7 @@ SeventyTwoBefore <- lastDate - (72*3600)
 
 # Define UI
 ui <- fluidPage(theme = shinytheme("cerulean"),
-                titlePanel("University of Utah Storm Drain Network"),
+                titlePanel(tags$a(href = "https://facilities.utah.edu/", "University of Utah Storm Drain Network", target = "_blank")),
                 sidebarLayout(
                   sidebarPanel(
                     
@@ -129,9 +156,17 @@ ui <- fluidPage(theme = shinytheme("cerulean"),
                     
                     # Select date range to be plotted
                     dateRangeInput("Date", strong("Date range"), start = SeventyTwoBefore, end = lastDate,
-                                   min = "2017-01-01", max = "2020-12-31")
+                                   min = "2017-01-01", max = "2020-12-31"),
                     
+                    # Link to Github page
+                    
+                    tags$a(href = "https://github.com/UtahHydroinformatics/Tanner-Stormwater", "Shiny Code", target = "_blank"),
+                    
+                    # Button
+                    downloadButton("downloadData", "Download All Data")
                   ),
+                   
+                  
                   
                   # Output: Description, lineplot, and reference
                   mainPanel(
@@ -142,6 +177,8 @@ ui <- fluidPage(theme = shinytheme("cerulean"),
                     leafletOutput("sensormap")
                   )
                 )
+                
+
 )
 
 # Define server function
@@ -204,6 +241,16 @@ server2 <- function(input, output) {
       addTiles() %>%
       addMarkers(lng=locations$long, lat=locations$lat, label=input$site)
   })
+  
+  # Downloadable csv of selected dataset ----
+  output$downloadData <- downloadHandler(
+    filename = function() {
+      paste("Discharge_Data", ".csv", sep = "")
+    },
+    content = function(file) {
+      write.csv(cbind(Tanner_Flow_Download[1:2], Tanner_Temp_Download[2], Tanner_Temp_Mayfly_Download[2], Tanner_Distance_Download[2]), file, row.names = FALSE)
+    }
+  )
   
 
 }
